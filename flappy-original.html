@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Flappy Bird - Part 11</title>
+  <title>Flappy Bird - Part 12</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -111,11 +111,14 @@
       font-size:40px;
       z-index:4;
       pointer-events:none;
-      animation: floatPower 3.5s infinite ease-in-out;
+      animation: floatPower 4s infinite ease-in-out;
     }
     @keyframes floatPower {
-      0%,100% { transform: translateY(0) rotate(0deg); }
-      50%     { transform: translateY(-30px) rotate(10deg); }
+      0%   { transform: translateY(0) rotate(0deg); }
+      25%  { transform: translateY(-20px) rotate(5deg); }
+      50%  { transform: translateY(0) rotate(0deg); }
+      75%  { transform: translateY(20px) rotate(-5deg); }
+      100% { transform: translateY(0) rotate(0deg); }
     }
     #score {
       position:absolute; top:50px; left:0; right:0;
@@ -189,14 +192,14 @@
     <h1>STORE</h1>
     <div style="font-size:28px; margin:10px 0 30px;">Your coins: <span id="store-coins">0</span> 🪙</div>
 
-    <div class="item" data-bird="yellow"   data-price="0">     Yellow Bird   <span>Common – Free</span></div>
-    <div class="item" data-bird="blue"     data-price="50">    Blue Bird     <span>Common – 50 coins</span></div>
-    <div class="item" data-bird="pink"     data-price="150">   Pink Bird     <span>Uncommon – 150 coins</span></div>
-    <div class="item" data-bird="purple"   data-price="220">   Purple Bird   <span>Uncommon – 220 coins</span></div>
-    <div class="item" data-bird="cyan"     data-price="450">   Cyan Neon     <span>Rare – 450 coins</span></div>
-    <div class="item" data-bird="gold"     data-price="700">   Golden Bird   <span>Rare – 700 coins</span></div>
-    <div class="item" data-bird="rainbow"  data-price="1800">  Rainbow Bird  <span>Legendary – 1800 coins</span></div>
-    <div class="item" data-bird="ghost"    data-price="2800">  Ghost Bird    <span>Legendary – 2800 coins</span></div>
+    <div class="item" data-bird="yellow" data-price="0">Yellow Bird <span>Common – Free</span></div>
+    <div class="item" data-bird="blue" data-price="50">Blue Bird <span>Common – 50 coins</span></div>
+    <div class="item" data-bird="pink" data-price="150">Pink Bird <span>Uncommon – 150 coins</span></div>
+    <div class="item" data-bird="purple" data-price="220">Purple Bird <span>Uncommon – 220 coins</span></div>
+    <div class="item" data-bird="cyan" data-price="450">Cyan Neon <span>Rare – 450 coins</span></div>
+    <div class="item" data-bird="gold" data-price="700">Golden Bird <span>Rare – 700 coins</span></div>
+    <div class="item" data-bird="rainbow" data-price="1800">Rainbow Bird <span>Legendary – 1800 coins</span></div>
+    <div class="item" data-bird="ghost" data-price="2800">Ghost Bird <span>Legendary – 2800 coins</span></div>
 
     <button id="btn-back-store">Back to Menu</button>
   </div>
@@ -230,8 +233,9 @@ const GRAVITY = 0.48;
 const JUMP = -8.0;
 let score = 0;
 let running = false;
-let gameStarted = false; // ← new flag: true after first flap
+let gameStarted = false; // true after first flap
 let pipes = [];
+let powerUps = []; // array of active floating power-ups
 let currentSpeed = 2.4;
 const BASE_SPEED = 2.4;
 const SPEED_INCREMENT = 0.3;
@@ -244,7 +248,7 @@ let gracePeriod = true;
 let resurrectCost = 50;
 let resurrectUsedThisRun = 0;
 
-// Power-ups
+// Power-up state
 let activePower = null; // null | 'apple' | 'coin'
 let powerEndTime = 0;
 let doubleScorePipesLeft = 0;
@@ -292,6 +296,8 @@ function resetGame(fullReset = true) {
   activePower = null;
   powerEndTime = 0;
   doubleScorePipesLeft = 0;
+  powerUps.forEach(pu => pu.remove());
+  powerUps = [];
   scoreEl.textContent = '0';
   birdEl.style.top = '280px';
   birdEl.style.transform = 'rotate(0deg)';
@@ -364,58 +370,69 @@ function updateResurrectUI() {
   resurrectBtn.style.opacity = coins < resurrectCost ? 0.5 : 1;
 }
 
-// POWER-UP SPAWN
-function spawnPowerUp(x, y) {
+// POWER-UP SPAWN (random floating)
+function spawnPowerUp() {
   const type = Math.random() < 0.5 ? 'apple' : 'coin';
   const pu = document.createElement('div');
   pu.className = 'powerup';
   pu.textContent = type === 'apple' ? '🍎' : '🪙';
-  pu.style.left = x + 'px';
-  pu.style.top = y + 'px';
+  pu.dataset.type = type;
+  pu.style.left = '400px';
+  pu.style.top = (Math.random() * 400 + 100) + 'px'; // random height
   gameEl.appendChild(pu);
-
-  setTimeout(() => { pu.remove(); }, 7000); // disappear after 7s if not taken
+  powerUps.push(pu);
 }
 
-// CHECK POWER-UP COLLECTION
+// CHECK POWER-UP COLLECTION & ACTIVATION
 function checkPowerUpCollision() {
   const birdRect = birdEl.getBoundingClientRect();
-  document.querySelectorAll('.powerup').forEach(pu => {
+  powerUps = powerUps.filter(pu => {
     const puRect = pu.getBoundingClientRect();
     if (birdRect.right > puRect.left && birdRect.left < puRect.right &&
         birdRect.bottom > puRect.top && birdRect.top < puRect.bottom) {
-      const type = pu.textContent === '🍎' ? 'apple' : 'coin';
+      const type = pu.dataset.type;
       activatePowerUp(type);
       pu.remove();
+      return false; // remove from array
     }
+    return true;
   });
 }
 
-// ACTIVATE POWER-UP (replace old one)
+// ACTIVATE / REPLACE POWER-UP
 function activatePowerUp(type) {
   activePower = type;
 
   if (type === 'apple') {
-    powerEndTime = Date.now() + 5000; // 5 seconds no-clip
+    powerEndTime = Date.now() + 5000; // 5 seconds
   } else if (type === 'coin') {
-    doubleScorePipesLeft = 10; // ×2 for next 10 pipes
-    powerEndTime = 0; // coin is counter-based
+    doubleScorePipesLeft = 10;
+    powerEndTime = 0; // counter-based
   }
 
-  // Quick visual feedback
-  birdEl.style.filter = 'brightness(1.5)';
-  setTimeout(() => birdEl.style.filter = 'none', 300);
+  birdEl.style.filter = 'brightness(1.6)';
+  setTimeout(() => birdEl.style.filter = 'none', 500);
 }
 
-// UPDATE POWER-UP TIMERS
+// UPDATE POWER-UP TIMERS & MOVEMENT
 function updatePowerUps() {
   if (activePower === 'apple' && Date.now() > powerEndTime) {
     activePower = null;
   }
-  // coin power ends when counter reaches 0 (handled in updatePipes)
+
+  // Move power-ups left
+  powerUps.forEach(pu => {
+    let x = parseFloat(pu.style.left) || 400;
+    x -= currentSpeed * 0.8; // slower than pipes
+    pu.style.left = x + 'px';
+    if (x < -50) {
+      pu.remove();
+      powerUps = powerUps.filter(p => p !== pu);
+    }
+  });
 }
 
-// PIPE CREATION (with power-up chance)
+// PIPE CREATION (chance to spawn power-up)
 function createPipe(isBoss = false) {
   const min = 100;
   const max = 640 - PIPE_GAP - min;
@@ -439,15 +456,13 @@ function createPipe(isBoss = false) {
 
   pipes.push({top, bot, scored:false, isBoss, baseTop: topH});
 
-  // ~15% chance to spawn power-up
-  if (Math.random() < 0.15 && !isBoss) {
-    const puX = 400;
-    const puY = topH + PIPE_GAP / 2 + (Math.random() * 80 - 40);
-    spawnPowerUp(puX, puY);
+  // 20% chance to spawn floating power-up
+  if (Math.random() < 0.2 && !isBoss) {
+    spawnPowerUp();
   }
 }
 
-// PIPE UPDATE (with scoring & power-up logic)
+// PIPE UPDATE
 function updatePipes() {
   oscillationPhase += 0.015;
   for (let i = pipes.length - 1; i >= 0; i--) {
@@ -488,10 +503,10 @@ function updatePipes() {
   }
 }
 
-// COLLISION (with no-clip power-up)
+// COLLISION
 function collides() {
   if (gracePeriod) return false;
-  if (activePower === 'apple') return false; // no-clip active
+  if (activePower === 'apple') return false;
 
   if (birdY < -20 || birdY + 26 > 640) return true;
   const birdRect = birdEl.getBoundingClientRect();
@@ -505,10 +520,9 @@ function collides() {
   return false;
 }
 
-// BIRD UPDATE (floating before first tap)
+// BIRD UPDATE
 function updateBird() {
   if (!gameStarted) {
-    // Float gently until first flap
     birdY = 280 + Math.sin(Date.now() * 0.002) * 30;
     birdEl.style.top = birdY + 'px';
     birdEl.style.transform = 'rotate(0deg)';
@@ -545,7 +559,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// FLAP (first tap starts real game)
+// FLAP
 function flap() {
   if (!running) return;
 
