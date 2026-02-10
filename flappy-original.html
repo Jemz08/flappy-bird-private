@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>FLAPPY BIRD - AJ.ALBS</title>
+  <title>Flappy Bird - Part 10</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -112,6 +112,17 @@
       color:#fff; text-shadow:4px 4px 0 #000, -4px -4px 0 #000;
       pointer-events:none; z-index:10;
     }
+    .powerup {
+      position:absolute;
+      font-size:36px;
+      z-index:4;
+      pointer-events:none;
+      animation: floatPower 3s infinite ease-in-out;
+    }
+    @keyframes floatPower {
+      0%,100% { transform:translateY(0); }
+      50%     { transform:translateY(-20px); }
+    }
     .screen {
       position:absolute; inset:0;
       background:rgba(0,0,0,0.65); color:#fff;
@@ -150,14 +161,14 @@
   <div id="coins">0 🪙</div>
 
   <div id="menu" class="screen">
-    <h1>FLAPPY - AARON</h1>
+    <h1>FLAPPY</h1>
     <button id="btn-start">Start Game</button>
     <button id="btn-store">Store</button>
     <button id="btn-highscore">Highscore</button>
   </div>
 
   <div id="over" class="screen hidden">
-    <h1>GAME OVER - AJ</h1>
+    <h1>GAME OVER</h1>
     <div style="font-size:42px; margin:20px 0;">Score: <span id="final-score">0</span></div>
     <div style="font-size:28px; margin:10px 0;">Coins earned: +<span id="earned">0</span></div>
 
@@ -178,14 +189,14 @@
     <h1>STORE</h1>
     <div style="font-size:28px; margin:10px 0 30px;">Your coins: <span id="store-coins">0</span> 🪙</div>
 
-    <div class="item" data-bird="yellow"   data-price="0">     Yellow Bird   <span>Common – Free</span></div>
-    <div class="item" data-bird="blue"     data-price="50">    Blue Bird     <span>Common – 50 coins</span></div>
-    <div class="item" data-bird="pink"     data-price="150">   Pink Bird     <span>Uncommon – 150 coins</span></div>
-    <div class="item" data-bird="purple"   data-price="220">   Purple Bird   <span>Uncommon – 220 coins</span></div>
-    <div class="item" data-bird="cyan"     data-price="450">   Cyan Neon     <span>Rare – 450 coins</span></div>
-    <div class="item" data-bird="gold"     data-price="700">   Golden Bird   <span>Rare – 700 coins</span></div>
-    <div class="item" data-bird="rainbow"  data-price="1800">  Rainbow Bird  <span>Legendary – 1800 coins</span></div>
-    <div class="item" data-bird="ghost"    data-price="2800">  Ghost Bird    <span>Legendary – 2800 coins</span></div>
+    <div class="item" data-bird="yellow" data-price="0">Yellow Bird <span>Common – Free</span></div>
+    <div class="item" data-bird="blue" data-price="50">Blue Bird <span>Common – 50 coins</span></div>
+    <div class="item" data-bird="pink" data-price="150">Pink Bird <span>Uncommon – 150 coins</span></div>
+    <div class="item" data-bird="purple" data-price="220">Purple Bird <span>Uncommon – 220 coins</span></div>
+    <div class="item" data-bird="cyan" data-price="450">Cyan Neon <span>Rare – 450 coins</span></div>
+    <div class="item" data-bird="gold" data-price="700">Golden Bird <span>Rare – 700 coins</span></div>
+    <div class="item" data-bird="rainbow" data-price="1800">Rainbow Bird <span>Legendary – 1800 coins</span></div>
+    <div class="item" data-bird="ghost" data-price="2800">Ghost Bird <span>Legendary – 2800 coins</span></div>
 
     <button id="btn-back-store">Back to Menu</button>
   </div>
@@ -198,9 +209,7 @@
 </div>
 
 <script>
-// ────────────────────────────────────────────────
 // CONFIG & SKINS
-// ────────────────────────────────────────────────
 const BIRDS = {
   yellow:   { bg: '#ffde00', wing: '#ffcc00', beak: '#ff6600', eye: '#000'     },
   blue:     { bg: '#40c4ff', wing: '#00b0ff', beak: '#0288d1', eye: '#000'     },
@@ -215,14 +224,13 @@ const BIRDS = {
 const DEFAULT_BIRD = 'yellow';
 const POINT_SOUND_URL = 'https://www.myinstants.com/media/sounds/sfx_point.mp3';
 
-// ────────────────────────────────────────────────
 // STATE
-// ────────────────────────────────────────────────
 let birdY = 280, vel = 0;
 const GRAVITY = 0.48;
 const JUMP = -8.0;
 let score = 0;
 let running = false;
+let started = false; // new: tracks if first tap happened
 let pipes = [];
 let currentSpeed = 2.4;
 const BASE_SPEED = 2.4;
@@ -236,13 +244,16 @@ let gracePeriod = true;
 let resurrectCost = 50;
 let resurrectUsedThisRun = 0;
 
+// Power-up state
+let activePower = null; // null, 'apple', or 'coin'
+let powerEndTime = 0;   // timestamp when power expires
+let doubleScorePipesLeft = 0; // how many more pipes give ×2
+
 let coins = parseInt(localStorage.getItem('flappyCoins') || '0') || 0;
 let highScore = parseInt(localStorage.getItem('flappyHigh') || '0') || 0;
 let selectedBird = localStorage.getItem('flappyBird') || DEFAULT_BIRD;
 
-// ────────────────────────────────────────────────
 // DOM
-// ────────────────────────────────────────────────
 const gameEl = document.getElementById('game');
 const birdEl = document.getElementById('bird');
 const scoreEl = document.getElementById('score');
@@ -261,9 +272,7 @@ const resurrectCostEl = document.getElementById('resurrect-cost');
 const pointSound = new Audio(POINT_SOUND_URL);
 pointSound.volume = 0.4;
 
-// ────────────────────────────────────────────────
 // BIRD SKIN
-// ────────────────────────────────────────────────
 function applyBirdSkin() {
   const skin = BIRDS[selectedBird] || BIRDS[DEFAULT_BIRD];
   birdEl.style.background = skin.bg;
@@ -272,15 +281,17 @@ function applyBirdSkin() {
   document.documentElement.style.setProperty('--eye-color', skin.eye);
 }
 
-// ────────────────────────────────────────────────
-// GAME FLOW
-// ────────────────────────────────────────────────
+// RESET GAME
 function resetGame(fullReset = true) {
   birdY = 280; vel = 0; score = 0;
   currentSpeed = BASE_SPEED;
   bossActive = false;
   oscillationPhase = 0;
   gracePeriod = true;
+  started = false;
+  activePower = null;
+  powerEndTime = 0;
+  doubleScorePipesLeft = 0;
   scoreEl.textContent = '0';
   birdEl.style.top = '280px';
   birdEl.style.transform = 'rotate(0deg)';
@@ -299,6 +310,7 @@ function resetGame(fullReset = true) {
   updateResurrectUI();
 }
 
+// START GAME
 function startGame() {
   if (running) return;
   resetGame(true);
@@ -311,6 +323,7 @@ function startGame() {
   requestAnimationFrame(loop);
 }
 
+// GAME OVER
 function gameOver() {
   running = false;
   if (score > highScore) {
@@ -326,6 +339,7 @@ function gameOver() {
   overEl.classList.remove('hidden');
 }
 
+// RESURRECT
 function resurrect() {
   if (coins < resurrectCost) return;
   coins -= resurrectCost;
@@ -350,9 +364,61 @@ function updateResurrectUI() {
   resurrectBtn.style.opacity = coins < resurrectCost ? 0.5 : 1;
 }
 
-// ────────────────────────────────────────────────
+// POWER-UP SPAWN & LOGIC
+function spawnPowerUp(x, y) {
+  const type = Math.random() < 0.5 ? 'apple' : 'coin';
+  const pu = document.createElement('div');
+  pu.className = 'powerup';
+  pu.textContent = type === 'apple' ? '🍎' : '🪙';
+  pu.style.left = x + 'px';
+  pu.style.top = y + 'px';
+  gameEl.appendChild(pu);
+
+  // Remove after ~6 seconds if not collected
+  setTimeout(() => { if (pu.parentNode) pu.remove(); }, 6000);
+}
+
+// CHECK POWER-UP COLLECTION
+function checkPowerUpCollision() {
+  const birdRect = birdEl.getBoundingClientRect();
+  document.querySelectorAll('.powerup').forEach(pu => {
+    const puRect = pu.getBoundingClientRect();
+    if (
+      birdRect.right > puRect.left &&
+      birdRect.left < puRect.right &&
+      birdRect.bottom > puRect.top &&
+      birdRect.top < puRect.bottom
+    ) {
+      const type = pu.textContent === '🍎' ? 'apple' : 'coin';
+      activatePowerUp(type);
+      pu.remove();
+    }
+  });
+}
+
+function activatePowerUp(type) {
+  // Remove old power-up if active
+  activePower = type;
+  powerEndTime = Date.now() + (type === 'apple' ? 5000 : 0); // apple lasts 5s, coin is per-pipe
+
+  if (type === 'coin') {
+    doubleScorePipesLeft = 10; // next 10 pipes ×2
+  }
+
+  // Visual feedback (optional: flash bird or show icon)
+  birdEl.style.opacity = 0.7;
+  setTimeout(() => { birdEl.style.opacity = 1; }, 400);
+}
+
+// UPDATE POWER-UP STATE
+function updatePowerUps() {
+  if (activePower === 'apple' && Date.now() > powerEndTime) {
+    activePower = null;
+  }
+  // coin power-up ends when doubleScorePipesLeft reaches 0 (handled in updatePipes)
+}
+
 // PIPE & GAME LOOP
-// ────────────────────────────────────────────────
 function createPipe(isBoss = false) {
   const min = 100;
   const max = 640 - PIPE_GAP - min;
@@ -375,6 +441,13 @@ function createPipe(isBoss = false) {
   gameEl.appendChild(bot);
 
   pipes.push({top, bot, scored:false, isBoss, baseTop: topH});
+
+  // Chance to spawn power-up near pipe (e.g. 15% chance)
+  if (Math.random() < 0.15 && !isBoss) {
+    const puX = 360 + 40;
+    const puY = topH + PIPE_GAP / 2 + (Math.random() * 100 - 50);
+    spawnPowerUp(puX, puY);
+  }
 }
 
 function updatePipes() {
@@ -395,7 +468,13 @@ function updatePipes() {
 
     if (!p.scored && x + (p.isBoss ? 110 : 74) < 90) {
       p.scored = true;
-      score++;
+      let points = 1;
+      if (doubleScorePipesLeft > 0) {
+        points = 2;
+        doubleScorePipesLeft--;
+        if (doubleScorePipesLeft === 0) activePower = null; // coin power ends
+      }
+      score += points;
       scoreEl.textContent = score;
       pointSound.currentTime = 0;
       pointSound.play().catch(()=>{});
@@ -413,6 +492,8 @@ function updatePipes() {
 
 function collides() {
   if (gracePeriod) return false;
+  if (activePower === 'apple') return false; // no-clip active
+
   if (birdY < -20 || birdY + 26 > 640) return true;
   const birdRect = birdEl.getBoundingClientRect();
   for (let p of pipes) {
@@ -426,11 +507,18 @@ function collides() {
 }
 
 function updateBird() {
-  vel += GRAVITY;
-  birdY += vel;
-  let rot = Math.min(Math.max(vel * 5, -35), 90);
-  birdEl.style.transform = `rotate(${rot}deg)`;
-  birdEl.style.top = birdY + 'px';
+  if (!started) {
+    // Float gently before first tap
+    birdY = 280 + Math.sin(Date.now() * 0.002) * 30;
+    birdEl.style.top = birdY + 'px';
+    birdEl.style.transform = 'rotate(0deg)';
+  } else {
+    vel += GRAVITY;
+    birdY += vel;
+    let rot = Math.min(Math.max(vel * 5, -35), 90);
+    birdEl.style.transform = `rotate(${rot}deg)`;
+    birdEl.style.top = birdY + 'px';
+  }
 }
 
 function loop() {
@@ -442,27 +530,37 @@ function loop() {
     if (isBossPipe) bossActive = false;
     lastPipe = now;
   }
+
   updateBird();
   updatePipes();
+  checkPowerUpCollision(); // new
+  updatePowerUps();        // new
+
   if (collides()) {
     gameOver();
     return;
   }
+
   requestAnimationFrame(loop);
 }
 
 function flap() {
-  if (running) {
+  if (!running) return;
+
+  // First tap starts the real game
+  if (!started) {
+    started = true;
     vel = JUMP;
-    birdEl.classList.remove('flapping');
-    void birdEl.offsetWidth;
-    birdEl.classList.add('flapping');
+  } else {
+    vel = JUMP;
   }
+
+  birdEl.classList.remove('flapping');
+  void birdEl.offsetWidth;
+  birdEl.classList.add('flapping');
 }
 
-// ────────────────────────────────────────────────
 // EVENT LISTENERS
-// ────────────────────────────────────────────────
 gameEl.addEventListener('pointerdown', e => {
   e.preventDefault();
   flap();
@@ -499,9 +597,7 @@ document.getElementById('btn-back-high').addEventListener('click', () => {
   menuEl.classList.remove('hidden');
 });
 
-// ────────────────────────────────────────────────
 // STORE BUY
-// ────────────────────────────────────────────────
 function refreshStoreItems() {
   document.querySelectorAll('.item').forEach(item => {
     const birdType = item.dataset.bird;
@@ -516,8 +612,8 @@ function refreshStoreItems() {
 }
 
 document.querySelectorAll('.item').forEach(item => {
-  item.addEventListener('click', () => {
-    const birdType = item.dataset.bird;
+  item.addEventListener('click', () =>
+  const birdType = item.dataset.bird;
     const price = parseInt(item.dataset.price);
     const alreadyUnlocked = localStorage.getItem(`unlocked_${birdType}`);
 
@@ -550,9 +646,7 @@ function updateCoins() {
   localStorage.setItem('flappyCoins', coins);
 }
 
-// ────────────────────────────────────────────────
 // INIT
-// ────────────────────────────────────────────────
 applyBirdSkin();
 updateCoins();
 highScoreDisplay.textContent = highScore;
@@ -560,3 +654,4 @@ menuEl.classList.remove('hidden');
 </script>
 </body>
 </html>
+    
