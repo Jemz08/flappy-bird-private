@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Flappy Bird - Part 9</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      height:100vh;
+      overflow:hidden;
+      background:#0d1b2a;
+      font-family:Arial, sans-serif;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      touch-action:manipulation;
+    }
+    #game {
+      position:relative;
+      width:360px;
+      height:640px;
+      overflow:hidden;
+      border:6px solid #333;
+      border-radius:14px;
+      box-shadow:0 8px 30px rgba(0,0,0,0.7);
+      touch-action:none;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent;
+      background: linear-gradient(to bottom, #1e3a8a, #60a5fa, #facc15, #f97316);
+    }
+    #game::before {
+      content:"";
+      position:absolute;
+      bottom:0; left:0; right:0;
+      height:180px;
+      background: linear-gradient(to bottom, transparent 0%, #0f172a 30%),
+                  repeating-linear-gradient(90deg, #1e293b 0px, #1e293b 20px, #334155 20px, #334155 40px);
+      z-index:1; pointer-events:none;
+    }
+    #game::after {
+      content:"";
+      position:absolute;
+      bottom:0; left:0; right:0;
+      height:180px;
+      background: radial-gradient(circle at 20% 80%, #fef08a 0%, transparent 10%),
+                  radial-gradient(circle at 50% 60%, #fef08a 0%, transparent 8%),
+                  radial-gradient(circle at 80% 70%, #fef08a 0%, transparent 12%);
+      opacity:0.4; z-index:1; pointer-events:none;
+    }
+    #bird {
+      position:absolute;
+      width:34px; height:26px;
+      left:90px; top:280px;
+      border-radius:50% 50% 40% 40%;
+      box-shadow:inset -8px -5px 10px rgba(0,0,0,0.4);
+      transition:transform 0.07s;
+      z-index:5;
+    }
+    #bird.flapping::before {
+      animation: flapWing 0.28s ease-out forwards;
+    }
+    @keyframes flapWing {
+      0%   { transform: rotate(0deg) translateY(0); }
+      40%  { transform: rotate(-70deg) translateY(-7px); }
+      100% { transform: rotate(0deg) translateY(0); }
+    }
+    #bird::before { /* wing */
+      content:""; position:absolute;
+      width:18px; height:14px;
+      background:var(--wing-color, #ffcc00);
+      border-radius:50% 50% 0 0;
+      top:-5px; right:4px;
+      transform-origin: bottom center;
+      z-index:1; box-shadow:inset -4px -3px 6px rgba(0,0,0,0.3);
+    }
+    #bird::after { /* beak */
+      content:""; position:absolute;
+      width:0; height:0;
+      border-left:13px solid var(--beak-color, #ff6600);
+      border-top:7px solid transparent;
+      border-bottom:7px solid transparent;
+      right:-10px; top:7px; z-index:2;
+    }
+    #bird .eye {
+      position:absolute; width:8px; height:8px;
+      background:#fff; border-radius:50%;
+      top:6px; right:10px;
+      box-shadow: inset 2px 2px 3px rgba(0,0,0,0.4); z-index:2;
+    }
+    #bird .pupil {
+      position:absolute; width:4px; height:4px;
+      background:#000; border-radius:50%;
+      top:2px; right:2px;
+    }
+    .pipe {
+      position:absolute; width:74px;
+      background:linear-gradient(#5ac75a,#3a8c3a);
+      border:5px solid #2e7d32; border-radius:8px;
+      box-shadow:2px 2px 6px rgba(0,0,0,0.4);
+      transition: top 0.12s linear; z-index:3;
+    }
+    .boss-pipe {
+      width:110px !important;
+      background:linear-gradient(#d32f2f,#b71c1c) !important;
+      border-color:#7f0000 !important;
+      box-shadow:0 0 12px rgba(255,0,0,0.7);
+    }
+    #score {
+      position:absolute; top:50px; left:0; right:0;
+      text-align:center; font-size:72px; font-weight:bold;
+      color:#fff; text-shadow:4px 4px 0 #000, -4px -4px 0 #000;
+      pointer-events:none; z-index:10;
+    }
+    .screen {
+      position:absolute; inset:0;
+      background:rgba(0,0,0,0.65); color:#fff;
+      display:flex; flex-direction:column;
+      justify-content:center; align-items:center;
+      z-index:20; text-align:center; padding:20px;
+    }
+    #store { overflow-y:auto; -webkit-overflow-scrolling:touch; }
+    .screen h1 { font-size:60px; margin:20px 0 30px; text-shadow:4px 4px 0 #000; }
+    .screen button, .screen .item {
+      background:#4CAF50; color:white; border:none;
+      padding:14px 28px; margin:12px auto;
+      font-size:22px; border-radius:10px;
+      cursor:pointer; min-width:220px;
+      touch-action:manipulation; display:block;
+    }
+    .screen button:active, .screen .item:active { transform:scale(0.97); }
+    .screen .locked { background:#777 !important; cursor:not-allowed; pointer-events:none; opacity:0.7; }
+    .screen .selected { background:#2196F3 !important; }
+    #store .item span { display:block; font-size:18px; margin-top:6px; color:#ddd; }
+    .hidden { display:none !important; }
+    #coins {
+      position:absolute; top:12px; right:16px;
+      font-size:28px; color:#ffeb3b;
+      text-shadow:2px 2px 0 #000; z-index:15; pointer-events:none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game">
+  <div id="bird">
+    <div class="eye"><div class="pupil"></div></div>
+  </div>
+  <div id="score">0</div>
+  <div id="coins">0 🪙</div>
+
+  <div id="menu" class="screen">
+    <h1>FLAPPY</h1>
+    <button id="btn-start">Start Game</button>
+    <button id="btn-store">Store</button>
+    <button id="btn-highscore">Highscore</button>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <h1>GAME OVER</h1>
+    <div style="font-size:42px; margin:20px 0;">Score: <span id="final-score">0</span></div>
+    <div style="font-size:28px; margin:10px 0;">Coins earned: +<span id="earned">0</span></div>
+
+    <div style="margin:30px 0 40px; width:100%; max-width:300px;">
+      <button id="btn-resurrect" style="background:#e53935; margin-bottom:16px;">
+        Resurrect (<span id="resurrect-cost">50</span> coins)
+      </button>
+      <button id="btn-restart" style="background:#43a047;">
+        Start Again (free)
+      </button>
+      <button id="btn-menu" style="background:#757575; margin-top:16px;">
+        Main Menu
+      </button>
+    </div>
+  </div>
+
+  <div id="store" class="screen hidden">
+    <h1>STORE</h1>
+    <div style="font-size:28px; margin:10px 0 30px;">Your coins: <span id="store-coins">0</span> 🪙</div>
+
+    <div class="item" data-bird="yellow"   data-price="0">     Yellow Bird   <span>Common – Free</span></div>
+    <div class="item" data-bird="blue"     data-price="50">    Blue Bird     <span>Common – 50 coins</span></div>
+    <div class="item" data-bird="pink"     data-price="150">   Pink Bird     <span>Uncommon – 150 coins</span></div>
+    <div class="item" data-bird="purple"   data-price="220">   Purple Bird   <span>Uncommon – 220 coins</span></div>
+    <div class="item" data-bird="cyan"     data-price="450">   Cyan Neon     <span>Rare – 450 coins</span></div>
+    <div class="item" data-bird="gold"     data-price="700">   Golden Bird   <span>Rare – 700 coins</span></div>
+    <div class="item" data-bird="rainbow"  data-price="1800">  Rainbow Bird  <span>Legendary – 1800 coins</span></div>
+    <div class="item" data-bird="ghost"    data-price="2800">  Ghost Bird    <span>Legendary – 2800 coins</span></div>
+
+    <button id="btn-back-store">Back to Menu</button>
+  </div>
+
+  <div id="highscore" class="screen hidden">
+    <h1>HIGHSCORE</h1>
+    <div style="font-size:80px; margin:40px 0;" id="high-score-display">0</div>
+    <button id="btn-back-high">Back to Menu</button>
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+// CONFIG & SKINS
+// ────────────────────────────────────────────────
+const BIRDS = {
+  yellow:   { bg: '#ffde00', wing: '#ffcc00', beak: '#ff6600', eye: '#000'     },
+  blue:     { bg: '#40c4ff', wing: '#00b0ff', beak: '#0288d1', eye: '#000'     },
+  pink:     { bg: '#ff80ab', wing: '#ff4081', beak: '#c2185b', eye: '#000'     },
+  purple:   { bg: '#b388ff', wing: '#7c4dff', beak: '#512da8', eye: '#fff'     },
+  cyan:     { bg: '#18ffff', wing: '#00e5ff', beak: '#00acc1', eye: '#000'     },
+  gold:     { bg: '#ffc107', wing: '#ffb300', beak: '#ff8f00', eye: '#000'     },
+  rainbow:  { bg: 'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff)', wing: '#e0e0e0', beak: '#ff5722', eye: '#000' },
+  ghost:    { bg: '#e0f2f1', wing: '#b2dfdb', beak: '#80cbc4', eye: '#000'     }
+};
+
+const DEFAULT_BIRD = 'yellow';
+const POINT_SOUND_URL = 'https://www.myinstants.com/media/sounds/sfx_point.mp3';
+
+// ────────────────────────────────────────────────
+// STATE
+// ────────────────────────────────────────────────
+let birdY = 280, vel = 0;
+const GRAVITY = 0.48;
+const JUMP = -8.0;
+let score = 0;
+let running = false;
+let pipes = [];
+let currentSpeed = 2.4;
+const BASE_SPEED = 2.4;
+const SPEED_INCREMENT = 0.3;
+const PIPE_GAP = 175;
+const PIPE_INTERVAL = 1550;
+let lastPipe = 0;
+let bossActive = false;
+let oscillationPhase = 0;
+let gracePeriod = true;
+let resurrectCost = 50;
+let resurrectUsedThisRun = 0;
+
+let coins = parseInt(localStorage.getItem('flappyCoins') || '0') || 0;
+let highScore = parseInt(localStorage.getItem('flappyHigh') || '0') || 0;
+let selectedBird = localStorage.getItem('flappyBird') || DEFAULT_BIRD;
+
+// ────────────────────────────────────────────────
+// DOM
+// ────────────────────────────────────────────────
+const gameEl = document.getElementById('game');
+const birdEl = document.getElementById('bird');
+const scoreEl = document.getElementById('score');
+const coinsEl = document.getElementById('coins');
+const menuEl = document.getElementById('menu');
+const overEl = document.getElementById('over');
+const storeEl = document.getElementById('store');
+const highscoreEl = document.getElementById('highscore');
+const finalScoreEl = document.getElementById('final-score');
+const earnedEl = document.getElementById('earned');
+const highScoreDisplay = document.getElementById('high-score-display');
+const storeCoinsEl = document.getElementById('store-coins');
+const resurrectBtn = document.getElementById('btn-resurrect');
+const resurrectCostEl = document.getElementById('resurrect-cost');
+
+const pointSound = new Audio(POINT_SOUND_URL);
+pointSound.volume = 0.4;
+
+// ────────────────────────────────────────────────
+// BIRD SKIN
+// ────────────────────────────────────────────────
+function applyBirdSkin() {
+  const skin = BIRDS[selectedBird] || BIRDS[DEFAULT_BIRD];
+  birdEl.style.background = skin.bg;
+  birdEl.style.setProperty('--wing-color', skin.wing || skin.bg);
+  document.documentElement.style.setProperty('--beak-color', skin.beak);
+  document.documentElement.style.setProperty('--eye-color', skin.eye);
+}
+
+// ────────────────────────────────────────────────
+// GAME FLOW
+// ────────────────────────────────────────────────
+function resetGame(fullReset = true) {
+  birdY = 280; vel = 0; score = 0;
+  currentSpeed = BASE_SPEED;
+  bossActive = false;
+  oscillationPhase = 0;
+  gracePeriod = true;
+  scoreEl.textContent = '0';
+  birdEl.style.top = '280px';
+  birdEl.style.transform = 'rotate(0deg)';
+  birdEl.classList.remove('flapping');
+  pipes.forEach(p => { p.top.remove(); p.bot.remove(); });
+  pipes = [];
+  running = false;
+  gameEl.style.background = '';
+  applyBirdSkin();
+  setTimeout(() => { gracePeriod = false; }, 800);
+
+  if (fullReset) {
+    resurrectCost = 50;
+    resurrectUsedThisRun = 0;
+  }
+  updateResurrectUI();
+}
+
+function startGame() {
+  if (running) return;
+  resetGame(true);
+  menuEl.classList.add('hidden');
+  overEl.classList.add('hidden');
+  storeEl.classList.add('hidden');
+  highscoreEl.classList.add('hidden');
+  running = true;
+  lastPipe = Date.now() - PIPE_INTERVAL + 800;
+  requestAnimationFrame(loop);
+}
+
+function gameOver() {
+  running = false;
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('flappyHigh', highScore);
+    highScoreDisplay.textContent = highScore;
+  }
+  coins += score;
+  updateCoins();
+  finalScoreEl.textContent = score;
+  earnedEl.textContent = score;
+  updateResurrectUI();
+  overEl.classList.remove('hidden');
+}
+
+function resurrect() {
+  if (coins < resurrectCost) return;
+  coins -= resurrectCost;
+  updateCoins();
+  birdY = 200;
+  vel = 0;
+  birdEl.style.top = '200px';
+  birdEl.style.transform = 'rotate(0deg)';
+  pipes.forEach(p => { p.top.remove(); p.bot.remove(); });
+  pipes = [];
+  resurrectUsedThisRun++;
+  resurrectCost = 50 + resurrectUsedThisRun * 100;
+  updateResurrectUI();
+  running = true;
+  lastPipe = Date.now() - PIPE_INTERVAL + 400;
+  requestAnimationFrame(loop);
+}
+
+function updateResurrectUI() {
+  resurrectCostEl.textContent = resurrectCost;
+  resurrectBtn.disabled = coins < resurrectCost;
+  resurrectBtn.style.opacity = coins < resurrectCost ? 0.5 : 1;
+}
+
+// ────────────────────────────────────────────────
+// PIPE & GAME LOOP
+// ────────────────────────────────────────────────
+function createPipe(isBoss = false) {
+  const min = 100;
+  const max = 640 - PIPE_GAP - min;
+  let topH = Math.floor(Math.random() * (max - min) + min);
+  if (isBoss) topH = 220;
+
+  const top = document.createElement('div');
+  top.className = 'pipe' + (isBoss ? ' boss-pipe' : '');
+  top.style.height = topH + 'px';
+  top.style.left = '360px';
+  top.style.top = '0px';
+
+  const bot = document.createElement('div');
+  bot.className = 'pipe' + (isBoss ? ' boss-pipe' : '');
+  bot.style.height = (640 - topH - PIPE_GAP) + 'px';
+  bot.style.left = '360px';
+  bot.style.bottom = '0px';
+
+  gameEl.appendChild(top);
+  gameEl.appendChild(bot);
+
+  pipes.push({top, bot, scored:false, isBoss, baseTop: topH});
+}
+
+function updatePipes() {
+  oscillationPhase += 0.015;
+  for (let i = pipes.length - 1; i >= 0; i--) {
+    const p = pipes[i];
+    let x = parseFloat(p.top.style.left) - currentSpeed;
+    p.top.style.left = x + 'px';
+    p.bot.style.left = x + 'px';
+
+    if (score >= 20 && !p.isBoss) {
+      const amp = 15 + Math.floor(score / 20) * 5;
+      const offset = Math.sin(oscillationPhase + i * 1.5) * amp;
+      const newTop = p.baseTop + offset;
+      p.top.style.top = newTop + 'px';
+      p.bot.style.bottom = (640 - newTop - PIPE_GAP) + 'px';
+    }
+
+    if (!p.scored && x + (p.isBoss ? 110 : 74) < 90) {
+      p.scored = true;
+      score++;
+      scoreEl.textContent = score;
+      pointSound.currentTime = 0;
+      pointSound.play().catch(()=>{});
+      if (score % 10 === 0 && score > 0) currentSpeed += SPEED_INCREMENT;
+      if (score === 100) bossActive = true;
+    }
+
+    if (x < -120) {
+      p.top.remove();
+      p.bot.remove();
+      pipes.splice(i, 1);
+    }
+  }
+}
+
+function collides() {
+  if (gracePeriod) return false;
+  if (birdY < -20 || birdY + 26 > 640) return true;
+  const birdRect = birdEl.getBoundingClientRect();
+  for (let p of pipes) {
+    const topRect = p.top.getBoundingClientRect();
+    const botRect = p.bot.getBoundingClientRect();
+    if (birdRect.right > topRect.left && birdRect.left < topRect.right &&
+        ((birdRect.bottom > topRect.top && birdRect.top < topRect.bottom) ||
+         (birdRect.bottom > botRect.top && birdRect.top < botRect.bottom))) return true;
+  }
+  return false;
+}
+
+function updateBird() {
+  vel += GRAVITY;
+  birdY += vel;
+  let rot = Math.min(Math.max(vel * 5, -35), 90);
+  birdEl.style.transform = `rotate(${rot}deg)`;
+  birdEl.style.top = birdY + 'px';
+}
+
+function loop() {
+  if (!running) return;
+  const now = Date.now();
+  if (now - lastPipe > PIPE_INTERVAL) {
+    const isBossPipe = bossActive && score === 100;
+    createPipe(isBossPipe);
+    if (isBossPipe) bossActive = false;
+    lastPipe = now;
+  }
+  updateBird();
+  updatePipes();
+  if (collides()) {
+    gameOver();
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+
+function flap() {
+  if (running) {
+    vel = JUMP;
+    birdEl.classList.remove('flapping');
+    void birdEl.offsetWidth;
+    birdEl.classList.add('flapping');
+  }
+}
+
+// ────────────────────────────────────────────────
+// EVENT LISTENERS
+// ────────────────────────────────────────────────
+gameEl.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  flap();
+}, { passive: false });
+
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-restart').addEventListener('click', startGame);
+document.getElementById('btn-resurrect').addEventListener('click', resurrect);
+document.getElementById('btn-menu').addEventListener('click', () => {
+  overEl.classList.add('hidden');
+  menuEl.classList.remove('hidden');
+  resetGame(true);
+});
+
+document.getElementById('btn-store').addEventListener('click', () => {
+  menuEl.classList.add('hidden');
+  storeEl.classList.remove('hidden');
+  refreshStoreItems();
+});
+
+document.getElementById('btn-highscore').addEventListener('click', () => {
+  menuEl.classList.add('hidden');
+  highscoreEl.classList.remove('hidden');
+  highScoreDisplay.textContent = highScore;
+});
+
+document.getElementById('btn-back-store').addEventListener('click', () => {
+  storeEl.classList.add('hidden');
+  menuEl.classList.remove('hidden');
+});
+
+document.getElementById('btn-back-high').addEventListener('click', () => {
+  highscoreEl.classList.add('hidden');
+  menuEl.classList.remove('hidden');
+});
+
+// ────────────────────────────────────────────────
+// STORE BUY
+// ────────────────────────────────────────────────
+function refreshStoreItems() {
+  document.querySelectorAll('.item').forEach(item => {
+    const birdType = item.dataset.bird;
+    const price = parseInt(item.dataset.price);
+    const unlocked = price === 0 || localStorage.getItem(`unlocked_${birdType}`);
+    if (birdType === selectedBird) item.classList.add('selected');
+    else item.classList.remove('selected');
+    if (unlocked) item.classList.remove('locked');
+    else if (coins >= price) item.classList.remove('locked');
+    else item.classList.add('locked');
+  });
+}
+
+document.querySelectorAll('.item').forEach(item => {
+  item.addEventListener('click', () => {
+    const birdType = item.dataset.bird;
+    const price = parseInt(item.dataset.price);
+    const alreadyUnlocked = localStorage.getItem(`unlocked_${birdType}`);
+
+    if (price === 0 || alreadyUnlocked) {
+      selectedBird = birdType;
+      localStorage.setItem('flappyBird', birdType);
+      applyBirdSkin();
+      document.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      return;
+    }
+
+    if (coins >= price) {
+      coins -= price;
+      localStorage.setItem(`unlocked_${birdType}`, 'true');
+      selectedBird = birdType;
+      localStorage.setItem('flappyBird', birdType);
+      applyBirdSkin();
+      updateCoins();
+      refreshStoreItems();
+      document.querySelectorAll('.item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+    }
+  });
+});
+
+function updateCoins() {
+  coinsEl.textContent = coins + " 🪙";
+  storeCoinsEl.textContent = coins;
+  localStorage.setItem('flappyCoins', coins);
+}
+
+// ────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────
+applyBirdSkin();
+updateCoins();
+highScoreDisplay.textContent = highScore;
+menuEl.classList.remove('hidden');
+</script>
+</body>
+</html>
