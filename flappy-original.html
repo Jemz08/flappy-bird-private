@@ -84,6 +84,23 @@
       box-shadow:0 4px 12px rgba(0,0,0,0.4); cursor:pointer;
     }
     #fullscreen-btn:active { transform:scale(0.96); }
+
+    /* Confirmation dialog */
+    #confirm-dialog {
+      position: absolute; inset: 0; background: rgba(0,0,0,0.75);
+      display: none; flex-direction: column; justify-content: center; align-items: center;
+      z-index: 30; color: white; text-align: center; padding: 30px;
+    }
+    #confirm-dialog.show { display: flex; }
+    #confirm-message { font-size: 32px; margin-bottom: 40px; text-shadow: 3px 3px 6px #000; }
+    .confirm-buttons { display: flex; gap: 30px; }
+    .confirm-btn {
+      padding: 18px 50px; font-size: 28px; border-radius: 16px; border: none;
+      min-width: 140px; cursor: pointer; transition: all 0.15s;
+    }
+    #confirm-yes { background: #e53935; color: white; }
+    #confirm-no  { background: #757575; color: white; }
+    .confirm-btn:active { transform: scale(0.95); }
   </style>
 </head>
 <body>
@@ -143,11 +160,22 @@
       <div style="font-size:100px; margin:50px 0 60px;" id="high-score-display">0</div>
       <button id="btn-back-high">Back to Menu</button>
     </div>
+
+    <!-- Confirmation dialog -->
+    <div id="confirm-dialog">
+      <div id="confirm-message"></div>
+      <div class="confirm-buttons">
+        <button id="confirm-yes" class="confirm-btn">YES</button>
+        <button id="confirm-no" class="confirm-btn">NO</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
+// ────────────────────────────────────────────────
 // CONFIG & SKINS
+// ────────────────────────────────────────────────
 const BIRDS = {
   yellow:   { bg: '#ffde00', wing: '#ffcc00', beak: '#ff6600', eye: '#000'     },
   blue:     { bg: '#40c4ff', wing: '#00b0ff', beak: '#0288d1', eye: '#000'     },
@@ -191,7 +219,7 @@ let gracePeriod = true;
 let resurrectCost = 50;
 let resurrectUsedThisRun = 0;
 
-let activePower = null; // null | 'apple' | 'coin' | 'mega-coin'
+let activePower = null;
 let powerEndTime = 0;
 let coinMultiplierPipesLeft = 0;
 let coinMultiplier = 1;
@@ -222,6 +250,10 @@ const storeCoinsEl  = document.getElementById('store-coins');
 const resurrectBtn  = document.getElementById('btn-resurrect');
 const resurrectCostEl = document.getElementById('resurrect-cost');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const confirmDialog = document.getElementById('confirm-dialog');
+const confirmMessage = document.getElementById('confirm-message');
+const confirmYes = document.getElementById('confirm-yes');
+const confirmNo  = document.getElementById('confirm-no');
 
 const ASPECT = 360 / 640;
 
@@ -245,29 +277,24 @@ window.addEventListener('resize', resizeGame);
 window.addEventListener('orientationchange', resizeGame);
 resizeGame();
 
-// FULLSCREEN BUTTON
+// FULLSCREEN
 fullscreenBtn.addEventListener('pointerdown', e => {
   e.preventDefault();
   const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen().catch(()=>{});
-  } else if (elem.webkitRequestFullscreen) {
-    elem.webkitRequestFullscreen();
-  } else if (elem.mozRequestFullScreen) {
-    elem.mozRequestFullScreen();
-  } else if (elem.msRequestFullscreen) {
-    elem.msRequestFullscreen();
-  }
+  if (elem.requestFullscreen) elem.requestFullscreen().catch(()=>{});
+  else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+  else if (elem.mozRequestFullScreen) elem.mozRequestFullScreen();
+  else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
 });
 
-// Hide address bar on mobile
-function hideAddressBar() {
-  setTimeout(() => window.scrollTo(0, 1), 0);
-}
+// Hide address bar
+function hideAddressBar() { setTimeout(() => window.scrollTo(0, 1), 0); }
 window.addEventListener('load', hideAddressBar);
 window.addEventListener('orientationchange', hideAddressBar);
 
-// BIRD SKIN
+// ────────────────────────────────────────────────
+// BIRD SKIN & POWER STATUS
+// ────────────────────────────────────────────────
 function applyBirdSkin() {
   const skin = BIRDS[selectedBird] || BIRDS[DEFAULT_BIRD];
   if (selectedBird === 'rainbow') {
@@ -277,16 +304,12 @@ function applyBirdSkin() {
     birdEl.classList.remove('rainbow');
     birdEl.style.background = skin.bg;
   }
-  if (selectedBird === 'ghost') {
-    birdEl.classList.add('ghost');
-  } else {
-    birdEl.classList.remove('ghost');
-  }
+  if (selectedBird === 'ghost') birdEl.classList.add('ghost');
+  else birdEl.classList.remove('ghost');
   birdEl.style.setProperty('--wing-color', skin.wing || skin.bg);
   document.documentElement.style.setProperty('--beak-color', skin.beak);
 }
 
-// POWER STATUS
 function updatePowerStatus() {
   if (!activePower) {
     powerStatus.classList.add('hidden');
@@ -297,19 +320,11 @@ function updatePowerStatus() {
   let icon = '', color = '#4fc3f7', remaining = 0, max = 1;
 
   if (activePower === 'apple') {
-    icon = '🍎';
-    remaining = Math.max(0, powerEndTime - Date.now());
-    max = 5000;
+    icon = '🍎'; remaining = Math.max(0, powerEndTime - Date.now()); max = 5000;
   } else if (activePower === 'coin') {
-    icon = '🪙 ×2';
-    remaining = coinMultiplierPipesLeft;
-    max = 10;
-    color = '#ffca28';
+    icon = '🪙 ×2'; remaining = coinMultiplierPipesLeft; max = 10; color = '#ffca28';
   } else if (activePower === 'mega-coin') {
-    icon = '🪙 ×5';
-    remaining = coinMultiplierPipesLeft;
-    max = 5;
-    color = '#ff5722';
+    icon = '🪙 ×5'; remaining = coinMultiplierPipesLeft; max = 5; color = '#ff5722';
   }
 
   powerIcon.textContent = icon;
@@ -318,7 +333,9 @@ function updatePowerStatus() {
   powerFill.style.background = color;
 }
 
-// RESET GAME
+// ────────────────────────────────────────────────
+// RESET / START / GAME OVER / MEDAL
+// ────────────────────────────────────────────────
 function resetGame(fullReset = true) {
   birdY = 280; vel = 0; score = 0;
   currentSpeed = BASE_SPEED; bossActive = false; oscillationPhase = 0;
@@ -341,7 +358,6 @@ function resetGame(fullReset = true) {
   updatePowerStatus();
 }
 
-// START GAME
 function startGame() {
   if (running) return;
   resetGame(true);
@@ -355,7 +371,6 @@ function startGame() {
   requestAnimationFrame(loop);
 }
 
-// MEDAL
 function showMedal() {
   medalEl.textContent = '';
   medalTextEl.textContent = '';
@@ -365,7 +380,6 @@ function showMedal() {
   else if (score >= 10)  { medalEl.textContent = '🥉'; medalTextEl.textContent = 'Bronze';   medalTextEl.style.color = '#cd7f32'; }
 }
 
-// GAME OVER
 function gameOver() {
   running = false;
   sounds.hit.currentTime = 0; sounds.hit.play().catch(()=>{});
@@ -387,8 +401,19 @@ function gameOver() {
   overEl.classList.remove('hidden');
 }
 
-// RESURRECT
-function resurrect() {
+// ────────────────────────────────────────────────
+// RESURRECT with CONFIRMATION
+// ────────────────────────────────────────────────
+function showResurrectConfirm() {
+  confirmMessage.textContent = `Are you sure you want to resurrect?\nThis will cost ${resurrectCost} coins.`;
+  confirmDialog.classList.add('show');
+}
+
+function hideConfirm() {
+  confirmDialog.classList.remove('show');
+}
+
+function performResurrect() {
   if (coins < resurrectCost) return;
   coins -= resurrectCost;
   updateCoins();
@@ -401,7 +426,25 @@ function resurrect() {
   running = true;
   lastPipe = Date.now() - PIPE_INTERVAL + 400;
   requestAnimationFrame(loop);
+  hideConfirm();
 }
+
+resurrectBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!resurrectBtn.disabled) {
+    showResurrectConfirm();
+  }
+});
+
+confirmYes.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  performResurrect();
+});
+
+confirmNo.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  hideConfirm();
+});
 
 function updateResurrectUI() {
   resurrectCostEl.textContent = resurrectCost;
@@ -413,7 +456,11 @@ function updateResurrectUI() {
   resurrectBtn.style.opacity = canAfford ? 1 : 0.6;
 }
 
-// POWER-UPS
+// ────────────────────────────────────────────────
+// POWER-UPS, PIPES, COLLISION, BIRD, LOOP, FLAP...
+// (keeping the rest of the logic the same as your previous working version)
+// ────────────────────────────────────────────────
+
 function spawnPowerUp() {
   const r = Math.random();
   let type = 'apple';
@@ -488,7 +535,6 @@ function updatePowerUps() {
   updatePowerStatus();
 }
 
-// PIPES
 function createPipe(isBoss = false) {
   const min = 100;
   const max = 640 - PIPE_GAP - min;
@@ -534,9 +580,7 @@ function updatePipes() {
     if (!p.scored && x + (p.isBoss ? 110 : 74) < 90) {
       p.scored = true;
       score += 1;
-      if (coinMultiplierPipesLeft > 0) {
-        coinMultiplierPipesLeft--;
-      }
+      if (coinMultiplierPipesLeft > 0) coinMultiplierPipesLeft--;
       scoreEl.textContent = score;
       sounds.point.currentTime = 0;
       sounds.point.play().catch(()=>{});
@@ -552,10 +596,9 @@ function updatePipes() {
   }
 }
 
-// COLLISION
 function collides() {
   if (gracePeriod || activePower === 'apple') return false;
-  if (birdY < -20 || birdY + 26 > parseFloat(gameEl.style.height)) return true;
+  if (birdY < -20 || birdY + 26 > parseFloat(gameEl.style.height || '640')) return true;
 
   const birdRect = birdEl.getBoundingClientRect();
   for (let p of pipes) {
@@ -568,7 +611,6 @@ function collides() {
   return false;
 }
 
-// BIRD UPDATE
 function updateBird() {
   if (!gameStarted) {
     birdY = 280 + Math.sin(Date.now() * 0.002) * 30;
@@ -583,7 +625,6 @@ function updateBird() {
   }
 }
 
-// MAIN LOOP
 function loop() {
   if (!running) return;
   const now = Date.now();
@@ -608,7 +649,6 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-// FLAP
 function flap() {
   if (!running) return;
   if (!gameStarted) gameStarted = true;
@@ -622,7 +662,9 @@ function flap() {
   birdEl.classList.add('flapping');
 }
 
-// EVENT LISTENERS
+// ────────────────────────────────────────────────
+// EVENT LISTENERS (game + buttons)
+// ────────────────────────────────────────────────
 gameEl.addEventListener('pointerdown', e => {
   e.preventDefault();
   flap();
@@ -641,7 +683,6 @@ function addSafeListener(id, callback) {
 
 addSafeListener('btn-start', startGame);
 addSafeListener('btn-restart', startGame);
-addSafeListener('btn-resurrect', resurrect);
 addSafeListener('btn-menu', () => {
   overEl.classList.add('hidden');
   menuEl.classList.remove('hidden');
@@ -666,18 +707,15 @@ addSafeListener('btn-back-high', () => {
   menuEl.classList.remove('hidden');
 });
 
-// STORE
+// STORE LOGIC
 function refreshStoreItems() {
   document.querySelectorAll('.item').forEach(item => {
     const birdType = item.dataset.bird;
     const price = parseInt(item.dataset.price);
     const unlocked = price === 0 || localStorage.getItem(`unlocked_${birdType}`);
     item.classList.toggle('selected', birdType === selectedBird);
-    if (unlocked) {
-      item.classList.remove('locked');
-    } else {
-      item.classList.toggle('locked', coins < price);
-    }
+    if (unlocked) item.classList.remove('locked');
+    else item.classList.toggle('locked', coins < price);
   });
 }
 
