@@ -2,212 +2,147 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Flappy Bird - AJ ALBS</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body {
-      height:100vh;
-      overflow:hidden;
-      background:#0d1b2a;
-      font-family:Arial, sans-serif;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      touch-action:manipulation;
+    html, body {
+      height:100%; width:100%; overflow:hidden; background:#0d1b2a;
+      touch-action:manipulation; font-family:Arial, sans-serif;
+    }
+    #container {
+      position:fixed; inset:0; display:flex; justify-content:center; align-items:center;
+      background:#000; touch-action:none;
     }
     #game {
-      position:relative;
-      width:360px;
-      height:640px;
-      overflow:hidden;
-      border:6px solid #333;
-      border-radius:14px;
-      box-shadow:0 8px 30px rgba(0,0,0,0.7);
-      touch-action:none;
-      user-select:none;
+      position:relative; overflow:hidden; touch-action:none; user-select:none;
       -webkit-tap-highlight-color:transparent;
       background: linear-gradient(to bottom, #1e3a8a, #60a5fa, #facc15, #f97316);
     }
     #game::before {
-      content:"";
-      position:absolute;
-      bottom:0; left:0; right:0;
-      height:180px;
+      content:""; position:absolute; bottom:0; left:0; right:0; height:180px;
       background: linear-gradient(to bottom, transparent 0%, #0f172a 30%),
                   repeating-linear-gradient(90deg, #1e293b 0px, #1e293b 20px, #334155 20px, #334155 40px);
       z-index:1; pointer-events:none;
     }
     #game::after {
-      content:"";
-      position:absolute;
-      bottom:0; left:0; right:0;
-      height:180px;
+      content:""; position:absolute; bottom:0; left:0; right:0; height:180px;
       background: radial-gradient(circle at 20% 80%, #fef08a 0%, transparent 10%),
                   radial-gradient(circle at 50% 60%, #fef08a 0%, transparent 8%),
                   radial-gradient(circle at 80% 70%, #fef08a 0%, transparent 12%);
       opacity:0.4; z-index:1; pointer-events:none;
     }
     #bird {
-      position:absolute;
-      width:34px; height:26px;
-      left:90px; top:280px;
-      border-radius:50% 50% 40% 40%;
-      box-shadow:inset -8px -5px 10px rgba(0,0,0,0.4);
-      transition:transform 0.07s;
-      z-index:5;
+      position:absolute; width:34px; height:26px; left:90px; top:280px;
+      border-radius:50% 50% 40% 40%; box-shadow:inset -8px -5px 10px rgba(0,0,0,0.4);
+      transition:transform 0.07s; z-index:5;
     }
-    #bird.flapping::before {
-      animation: flapWing 0.28s ease-out forwards;
+    #bird.rainbow {
+      background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff) !important;
+      background-size: 200% 200%;
+      animation: rainbowRotate 8s linear infinite;
     }
-    @keyframes flapWing {
-      0%   { transform: rotate(0deg) translateY(0); }
-      40%  { transform: rotate(-70deg) translateY(-7px); }
-      100% { transform: rotate(0deg) translateY(0); }
-    }
-    #bird::before { /* wing */
-      content:""; position:absolute;
-      width:18px; height:14px;
-      background:var(--wing-color, #ffcc00);
-      border-radius:50% 50% 0 0;
-      top:-5px; right:4px;
-      transform-origin: bottom center;
-      z-index:1; box-shadow:inset -4px -3px 6px rgba(0,0,0,0.3);
-    }
-    #bird::after { /* beak */
-      content:""; position:absolute;
-      width:0; height:0;
-      border-left:13px solid var(--beak-color, #ff6600);
-      border-top:7px solid transparent;
-      border-bottom:7px solid transparent;
-      right:-10px; top:7px; z-index:2;
-    }
-    #bird .eye {
-      position:absolute; width:8px; height:8px;
-      background:#fff; border-radius:50%;
-      top:6px; right:10px;
-      box-shadow: inset 2px 2px 3px rgba(0,0,0,0.4); z-index:2;
-    }
-    #bird .pupil {
-      position:absolute; width:4px; height:4px;
-      background:#000; border-radius:50%;
-      top:2px; right:2px;
-    }
-    .pipe {
-      position:absolute; width:74px;
-      background:linear-gradient(#5ac75a,#3a8c3a);
-      border:5px solid #2e7d32; border-radius:8px;
-      box-shadow:2px 2px 6px rgba(0,0,0,0.4);
-      transition: top 0.12s linear; z-index:3;
-    }
-    .boss-pipe {
-      width:110px !important;
-      background:linear-gradient(#d32f2f,#b71c1c) !important;
-      border-color:#7f0000 !important;
-      box-shadow:0 0 12px rgba(255,0,0,0.7);
-    }
-    .powerup {
-      position:absolute;
-      font-size:40px;
-      z-index:4;
-      pointer-events:none;
-      animation: floatPower 4s infinite ease-in-out;
-    }
-    @keyframes floatPower {
-      0%   { transform: translateY(0) rotate(0deg); }
-      25%  { transform: translateY(-20px) rotate(5deg); }
-      50%  { transform: translateY(0) rotate(0deg); }
-      75%  { transform: translateY(20px) rotate(-5deg); }
-      100% { transform: translateY(0) rotate(0deg); }
-    }
-    #score {
-      position:absolute; top:50px; left:0; right:0;
-      text-align:center; font-size:72px; font-weight:bold;
-      color:#fff; text-shadow:4px 4px 0 #000, -4px -4px 0 #000;
-      pointer-events:none; z-index:10;
-    }
-    .screen {
-      position:absolute; inset:0;
-      background:rgba(0,0,0,0.65); color:#fff;
-      display:flex; flex-direction:column;
-      justify-content:center; align-items:center;
-      z-index:20; text-align:center; padding:20px;
-    }
-    #store { overflow-y:auto; -webkit-overflow-scrolling:touch; }
-    .screen h1 { font-size:60px; margin:20px 0 30px; text-shadow:4px 4px 0 #000; }
+    @keyframes rainbowRotate { 0%{background-position:0% 50%;} 100%{background-position:200% 50%;} }
+    #bird.ghost { box-shadow: inset -8px -5px 10px rgba(0,0,0,0.4), 0 0 0 3px rgba(0,0,0,0.6); }
+    #bird.flapping::before { animation: flapWing 0.28s ease-out forwards; }
+    @keyframes flapWing { 0%{transform:rotate(0deg) translateY(0);} 40%{transform:rotate(-70deg) translateY(-7px);} 100%{transform:rotate(0deg) translateY(0);} }
+    #bird::before { content:""; position:absolute; width:18px; height:14px; background:var(--wing-color, #ffcc00); border-radius:50% 50% 0 0; top:-5px; right:4px; transform-origin:bottom center; z-index:1; box-shadow:inset -4px -3px 6px rgba(0,0,0,0.3); }
+    #bird::after { content:""; position:absolute; width:0; height:0; border-left:13px solid var(--beak-color, #ff6600); border-top:7px solid transparent; border-bottom:7px solid transparent; right:-10px; top:7px; z-index:2; }
+    #bird .eye { position:absolute; width:8px; height:8px; background:#fff; border-radius:50%; top:6px; right:10px; box-shadow:inset 2px 2px 3px rgba(0,0,0,0.4); z-index:2; }
+    #bird .pupil { position:absolute; width:4px; height:4px; background:#000; border-radius:50%; top:2px; right:2px; }
+    .pipe { position:absolute; width:74px; background:linear-gradient(#5ac75a,#3a8c3a); border:5px solid #2e7d32; border-radius:8px; box-shadow:2px 2px 6px rgba(0,0,0,0.4); transition:top 0.12s linear; z-index:3; }
+    .boss-pipe { width:110px !important; background:linear-gradient(#d32f2f,#b71c1c) !important; border-color:#7f0000 !important; box-shadow:0 0 12px rgba(255,0,0,0.7); }
+    .powerup { position:absolute; font-size:40px; z-index:4; pointer-events:none; animation:floatPower 4s infinite ease-in-out; }
+    @keyframes floatPower { 0%{transform:translateY(0) rotate(0deg);} 25%{transform:translateY(-20px) rotate(5deg);} 50%{transform:translateY(0) rotate(0deg);} 75%{transform:translateY(20px) rotate(-5deg);} 100%{transform:translateY(0) rotate(0deg);} }
+    #score { position:absolute; top:50px; left:0; right:0; text-align:center; font-size:72px; font-weight:bold; color:#fff; text-shadow:4px 4px 0 #000, -4px -4px 0 #000; pointer-events:none; z-index:10; }
+    .screen { position:absolute; inset:0; background:rgba(0,0,0,0.65); color:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:20; text-align:center; padding:30px 20px; overflow-y:auto; }
+    #store { padding:40px 20px 100px; }
+    .screen h1 { font-size:60px; margin:20px 0 40px; text-shadow:4px 4px 0 #000; line-height:1.1; }
     .screen button, .screen .item {
-      background:#4CAF50; color:white; border:none;
-      padding:16px 32px; margin:16px auto;
-      font-size:24px; border-radius:12px;
-      cursor:pointer; min-width:240px;
-      touch-action:manipulation; display:block;
+      background:#4CAF50; color:white; border:none; padding:20px 40px; margin:20px auto;
+      font-size:28px; border-radius:16px; cursor:pointer; min-width:280px; min-height:70px;
+      touch-action:manipulation; display:block; transition:all 0.15s; box-shadow:0 4px 12px rgba(0,0,0,0.4);
     }
-    .screen button:active { transform:scale(0.95); background:#388E3C; }
-    .screen .locked { background:#777 !important; cursor:not-allowed; pointer-events:none; opacity:0.7; }
+    .screen button:active, .screen .item:active { transform:scale(0.96); filter:brightness(1.1); }
+    .screen button:hover:not(:disabled), .screen .item:hover:not(.locked) { background:#66BB6A; }
+    .screen .locked { background:#777 !important; cursor:not-allowed; pointer-events:none; opacity:0.65; }
     .screen .selected { background:#2196F3 !important; }
-    #store .item span { display:block; font-size:18px; margin-top:6px; color:#ddd; }
+    #store .item { padding:24px 30px; min-height:90px; font-size:26px; }
+    #store .item span { display:block; font-size:20px; margin-top:8px; color:#eee; }
     .hidden { display:none !important; }
-    #coins {
-      position:absolute; top:12px; right:16px;
-      font-size:28px; color:#ffeb3b;
-      text-shadow:2px 2px 0 #000; z-index:15; pointer-events:none;
+    #coins { position:absolute; top:12px; right:16px; font-size:28px; color:#ffeb3b; text-shadow:2px 2px 0 #000; z-index:15; pointer-events:none; }
+    #power-status { position:absolute; top:60px; right:16px; z-index:12; pointer-events:none; display:flex; align-items:center; gap:10px; color:#fff; font-size:24px; text-shadow:2px 2px 0 #000; }
+    #power-timer { width:90px; height:12px; background:rgba(255,255,255,0.3); border-radius:6px; overflow:hidden; }
+    #power-fill { height:100%; background:#4fc3f7; width:100%; transition:width 0.2s linear; }
+    .gameover-buttons { display:flex; flex-direction:column; align-items:center; gap:24px; width:100%; max-width:320px; margin:40px 0; }
+    #fullscreen-btn {
+      background:#2196F3; color:white; font-size:28px; padding:20px 40px;
+      border:none; border-radius:16px; margin:30px auto; min-width:280px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.4); cursor:pointer;
     }
+    #fullscreen-btn:active { transform:scale(0.96); }
   </style>
 </head>
 <body>
 
-<div id="game">
-  <div id="bird">
-    <div class="eye"><div class="pupil"></div></div>
-  </div>
-  <div id="score">0</div>
-  <div id="coins">0 💰</div>
-
-  <div id="menu" class="screen">
-    <h1>FLAPPY - AJ</h1>
-    <button id="btn-start">Start Game</button>
-    <button id="btn-store">Store</button>
-    <button id="btn-highscore">Highscore</button>
-  </div>
-
-  <div id="over" class="screen hidden">
-    <h1>GAME OVER</h1>
-    <div style="font-size:42px; margin:20px 0;">Score: <span id="final-score">0</span></div>
-    <div style="font-size:28px; margin:10px 0;">Coins earned: +<span id="earned">0</span></div>
-
-    <div style="margin:30px 0 40px; width:100%; max-width:300px;">
-      <button id="btn-resurrect" style="background:#e53935; margin-bottom:16px;">
-        Resurrect (<span id="resurrect-cost">50</span> coins)
-      </button>
-      <button id="btn-restart" style="background:#43a047;">
-        Start Again (free)
-      </button>
-      <button id="btn-menu" style="background:#757575; margin-top:16px;">
-        Main Menu
-      </button>
+<div id="container">
+  <div id="game">
+    <div id="bird">
+      <div class="eye"><div class="pupil"></div></div>
     </div>
-  </div>
+    <div id="score">0</div>
+    <div id="coins">0 💰</div>
+    <div id="power-status" class="hidden">
+      <span id="power-icon"></span>
+      <div id="power-timer"><div id="power-fill"></div></div>
+    </div>
 
-  <div id="store" class="screen hidden">
-    <h1>STORE</h1>
-    <div style="font-size:28px; margin:10px 0 30px;">Your coins: <span id="store-coins">0</span> 🪙</div>
+    <div id="menu" class="screen">
+      <h1>FLAPPY - AJ</h1>
+      <button id="btn-start">Start Game</button>
+      <button id="btn-store">Store</button>
+      <button id="btn-highscore">Highscore</button>
+      <button id="fullscreen-btn">Go Full Screen</button>
+    </div>
 
-    <div class="item" data-bird="yellow" data-price="0">Yellow Bird <span>Common – Free</span></div>
-    <div class="item" data-bird="blue" data-price="50">Blue Bird <span>Common – 50 coins</span></div>
-    <div class="item" data-bird="pink" data-price="150">Pink Bird <span>Uncommon – 150 coins</span></div>
-    <div class="item" data-bird="purple" data-price="220">Purple Bird <span>Uncommon – 220 coins</span></div>
-    <div class="item" data-bird="cyan" data-price="450">Cyan Neon <span>Rare – 450 coins</span></div>
-    <div class="item" data-bird="gold" data-price="700">Golden Bird <span>Rare – 700 coins</span></div>
-    <div class="item" data-bird="rainbow" data-price="1800">Rainbow Bird <span>Legendary – 1800 coins</span></div>
-    <div class="item" data-bird="ghost" data-price="2800">Ghost Bird <span>Legendary – 2800 coins</span></div>
+    <div id="over" class="screen hidden">
+      <h1>GAME OVER</h1>
+      <div style="font-size:48px; margin:30px 0 20px;">Score: <span id="final-score">0</span></div>
+      <div style="font-size:32px; margin:15px 0;">Coins earned: +<span id="earned">0</span></div>
+      <div id="medal" style="font-size:110px; margin:30px 0; min-height:120px;"></div>
+      <div id="medal-text" style="font-size:38px; margin-bottom:40px; color:#ffd700;"></div>
 
-    <button id="btn-back-store">Back to Menu</button>
-  </div>
+      <div class="gameover-buttons">
+        <button id="btn-resurrect" style="background:#e53935;">Resurrect (<span id="resurrect-cost">50</span> coins)</button>
+        <button id="btn-restart" style="background:#43a047;">Start Again (free)</button>
+        <button id="btn-menu" style="background:#757575;">Main Menu</button>
+      </div>
+    </div>
 
-  <div id="highscore" class="screen hidden">
-    <h1>HIGHSCORE</h1>
-    <div style="font-size:80px; margin:40px 0;" id="high-score-display">0</div>
-    <button id="btn-back-high">Back to Menu</button>
+    <div id="store" class="screen hidden">
+      <h1>STORE</h1>
+      <div style="font-size:32px; margin:20px 0 40px;">Your coins: <span id="store-coins">0</span> 🪙</div>
+
+      <div class="item" data-bird="yellow" data-price="0">Yellow Bird <span>Common – Free</span></div>
+      <div class="item" data-bird="blue" data-price="50">Blue Bird <span>Common – 50 coins</span></div>
+      <div class="item" data-bird="pink" data-price="150">Pink Bird <span>Uncommon – 150 coins</span></div>
+      <div class="item" data-bird="purple" data-price="220">Purple Bird <span>Uncommon – 220 coins</span></div>
+      <div class="item" data-bird="cyan" data-price="450">Cyan Neon <span>Rare – 450 coins</span></div>
+      <div class="item" data-bird="gold" data-price="700">Golden Bird <span>Rare – 700 coins</span></div>
+      <div class="item" data-bird="rainbow" data-price="1800">Rainbow Bird <span>Legendary – 1800 coins</span></div>
+      <div class="item" data-bird="ghost" data-price="2800">Ghost Bird <span>Legendary – 2800 coins</span></div>
+
+      <button id="btn-back-store" style="margin-top:50px;">Back to Menu</button>
+    </div>
+
+    <div id="highscore" class="screen hidden">
+      <h1>HIGHSCORE</h1>
+      <div style="font-size:100px; margin:50px 0 60px;" id="high-score-display">0</div>
+      <button id="btn-back-high">Back to Menu</button>
+    </div>
   </div>
 </div>
 
@@ -220,12 +155,20 @@ const BIRDS = {
   purple:   { bg: '#b388ff', wing: '#7c4dff', beak: '#512da8', eye: '#fff'     },
   cyan:     { bg: '#18ffff', wing: '#00e5ff', beak: '#00acc1', eye: '#000'     },
   gold:     { bg: '#ffc107', wing: '#ffb300', beak: '#ff8f00', eye: '#000'     },
-  rainbow:  { bg: 'linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff)', wing: '#e0e0e0', beak: '#ff5722', eye: '#000' },
+  rainbow:  { bg: '', wing: '#e0e0e0', beak: '#ff5722', eye: '#000'     },
   ghost:    { bg: '#e0f2f1', wing: '#b2dfdb', beak: '#80cbc4', eye: '#000'     }
 };
 
 const DEFAULT_BIRD = 'yellow';
-const POINT_SOUND_URL = 'https://www.myinstants.com/media/sounds/sfx_point.mp3';
+
+// SOUNDS
+const sounds = {
+  flap: new Audio('https://www.myinstants.com/media/sounds/flap.mp3'),
+  point: new Audio('https://www.myinstants.com/media/sounds/sfx_point.mp3'),
+  hit: new Audio('https://www.myinstants.com/media/sounds/sfx_hit.mp3'),
+  die: new Audio('https://www.myinstants.com/media/sounds/sfx_die.mp3')
+};
+Object.values(sounds).forEach(s => { s.volume = 0.45; s.preload = 'auto'; });
 
 // STATE
 let birdY = 280, vel = 0;
@@ -233,9 +176,9 @@ const GRAVITY = 0.48;
 const JUMP = -8.0;
 let score = 0;
 let running = false;
-let gameStarted = false; // true after first flap
+let gameStarted = false;
 let pipes = [];
-let powerUps = []; // array of active floating power-ups
+let powerUps = [];
 let currentSpeed = 2.4;
 const BASE_SPEED = 2.4;
 const SPEED_INCREMENT = 0.3;
@@ -248,72 +191,154 @@ let gracePeriod = true;
 let resurrectCost = 50;
 let resurrectUsedThisRun = 0;
 
-// Power-up state
-let activePower = null; // null | 'apple' | 'coin'
+let activePower = null; // null | 'apple' | 'coin' | 'mega-coin'
 let powerEndTime = 0;
-let doubleScorePipesLeft = 0;
+let coinMultiplierPipesLeft = 0;
+let coinMultiplier = 1;
 
 let coins = parseInt(localStorage.getItem('flappyCoins') || '0') || 0;
 let highScore = parseInt(localStorage.getItem('flappyHigh') || '0') || 0;
 let selectedBird = localStorage.getItem('flappyBird') || DEFAULT_BIRD;
 
 // DOM
-const gameEl = document.getElementById('game');
-const birdEl = document.getElementById('bird');
-const scoreEl = document.getElementById('score');
-const coinsEl = document.getElementById('coins');
-const menuEl = document.getElementById('menu');
-const overEl = document.getElementById('over');
-const storeEl = document.getElementById('store');
-const highscoreEl = document.getElementById('highscore');
-const finalScoreEl = document.getElementById('final-score');
-const earnedEl = document.getElementById('earned');
+const container     = document.getElementById('container');
+const gameEl        = document.getElementById('game');
+const birdEl        = document.getElementById('bird');
+const scoreEl       = document.getElementById('score');
+const coinsEl       = document.getElementById('coins');
+const powerStatus   = document.getElementById('power-status');
+const powerIcon     = document.getElementById('power-icon');
+const powerFill     = document.getElementById('power-fill');
+const menuEl        = document.getElementById('menu');
+const overEl        = document.getElementById('over');
+const storeEl       = document.getElementById('store');
+const highscoreEl   = document.getElementById('highscore');
+const finalScoreEl  = document.getElementById('final-score');
+const earnedEl      = document.getElementById('earned');
+const medalEl       = document.getElementById('medal');
+const medalTextEl   = document.getElementById('medal-text');
 const highScoreDisplay = document.getElementById('high-score-display');
-const storeCoinsEl = document.getElementById('store-coins');
-const resurrectBtn = document.getElementById('btn-resurrect');
+const storeCoinsEl  = document.getElementById('store-coins');
+const resurrectBtn  = document.getElementById('btn-resurrect');
 const resurrectCostEl = document.getElementById('resurrect-cost');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
-const pointSound = new Audio(POINT_SOUND_URL);
-pointSound.volume = 0.4;
+const ASPECT = 360 / 640;
+
+// RESIZE LOGIC
+function resizeGame() {
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  let gameW, gameH;
+  if (w / h > ASPECT) {
+    gameH = h;
+    gameW = h * ASPECT;
+  } else {
+    gameW = w;
+    gameH = w / ASPECT;
+  }
+  gameEl.style.width  = gameW + 'px';
+  gameEl.style.height = gameH + 'px';
+}
+
+window.addEventListener('resize', resizeGame);
+window.addEventListener('orientationchange', resizeGame);
+resizeGame();
+
+// FULLSCREEN BUTTON
+fullscreenBtn.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen().catch(()=>{});
+  } else if (elem.webkitRequestFullscreen) {
+    elem.webkitRequestFullscreen();
+  } else if (elem.mozRequestFullScreen) {
+    elem.mozRequestFullScreen();
+  } else if (elem.msRequestFullscreen) {
+    elem.msRequestFullscreen();
+  }
+});
+
+// Hide address bar on mobile
+function hideAddressBar() {
+  setTimeout(() => window.scrollTo(0, 1), 0);
+}
+window.addEventListener('load', hideAddressBar);
+window.addEventListener('orientationchange', hideAddressBar);
 
 // BIRD SKIN
 function applyBirdSkin() {
   const skin = BIRDS[selectedBird] || BIRDS[DEFAULT_BIRD];
-  birdEl.style.background = skin.bg;
+  if (selectedBird === 'rainbow') {
+    birdEl.classList.add('rainbow');
+    birdEl.style.background = '';
+  } else {
+    birdEl.classList.remove('rainbow');
+    birdEl.style.background = skin.bg;
+  }
+  if (selectedBird === 'ghost') {
+    birdEl.classList.add('ghost');
+  } else {
+    birdEl.classList.remove('ghost');
+  }
   birdEl.style.setProperty('--wing-color', skin.wing || skin.bg);
   document.documentElement.style.setProperty('--beak-color', skin.beak);
-  document.documentElement.style.setProperty('--eye-color', skin.eye);
+}
+
+// POWER STATUS
+function updatePowerStatus() {
+  if (!activePower) {
+    powerStatus.classList.add('hidden');
+    return;
+  }
+  powerStatus.classList.remove('hidden');
+
+  let icon = '', color = '#4fc3f7', remaining = 0, max = 1;
+
+  if (activePower === 'apple') {
+    icon = '🍎';
+    remaining = Math.max(0, powerEndTime - Date.now());
+    max = 5000;
+  } else if (activePower === 'coin') {
+    icon = '🪙 ×2';
+    remaining = coinMultiplierPipesLeft;
+    max = 10;
+    color = '#ffca28';
+  } else if (activePower === 'mega-coin') {
+    icon = '🪙 ×5';
+    remaining = coinMultiplierPipesLeft;
+    max = 5;
+    color = '#ff5722';
+  }
+
+  powerIcon.textContent = icon;
+  const pct = max > 0 ? (remaining / max) * 100 : 100;
+  powerFill.style.width = pct + '%';
+  powerFill.style.background = color;
 }
 
 // RESET GAME
 function resetGame(fullReset = true) {
   birdY = 280; vel = 0; score = 0;
-  currentSpeed = BASE_SPEED;
-  bossActive = false;
-  oscillationPhase = 0;
-  gracePeriod = true;
-  gameStarted = false;
-  activePower = null;
-  powerEndTime = 0;
-  doubleScorePipesLeft = 0;
-  powerUps.forEach(pu => pu.remove());
-  powerUps = [];
+  currentSpeed = BASE_SPEED; bossActive = false; oscillationPhase = 0;
+  gracePeriod = true; gameStarted = false;
+  activePower = null; powerEndTime = 0; coinMultiplierPipesLeft = 0; coinMultiplier = 1;
+  powerUps.forEach(pu => pu.remove()); powerUps = [];
   scoreEl.textContent = '0';
-  birdEl.style.top = '280px';
-  birdEl.style.transform = 'rotate(0deg)';
+  birdEl.style.top = '280px'; birdEl.style.transform = 'rotate(0deg)';
   birdEl.classList.remove('flapping');
-  pipes.forEach(p => { p.top.remove(); p.bot.remove(); });
-  pipes = [];
+  pipes.forEach(p => { p.top.remove(); p.bot.remove(); }); pipes = [];
   running = false;
-  gameEl.style.background = '';
+  powerStatus.classList.add('hidden');
   applyBirdSkin();
   setTimeout(() => { gracePeriod = false; }, 800);
 
   if (fullReset) {
-    resurrectCost = 50;
-    resurrectUsedThisRun = 0;
+    resurrectCost = 50; resurrectUsedThisRun = 0;
   }
   updateResurrectUI();
+  updatePowerStatus();
 }
 
 // START GAME
@@ -324,23 +349,40 @@ function startGame() {
   overEl.classList.add('hidden');
   storeEl.classList.add('hidden');
   highscoreEl.classList.add('hidden');
+  resizeGame();
   running = true;
   lastPipe = Date.now() - PIPE_INTERVAL + 800;
   requestAnimationFrame(loop);
 }
 
+// MEDAL
+function showMedal() {
+  medalEl.textContent = '';
+  medalTextEl.textContent = '';
+  if      (score >= 100) { medalEl.textContent = '🏆'; medalTextEl.textContent = 'Platinum'; medalTextEl.style.color = '#b0e0e6'; }
+  else if (score >= 50)  { medalEl.textContent = '🥇'; medalTextEl.textContent = 'Gold';     medalTextEl.style.color = '#ffd700'; }
+  else if (score >= 25)  { medalEl.textContent = '🥈'; medalTextEl.textContent = 'Silver';   medalTextEl.style.color = '#c0c0c0'; }
+  else if (score >= 10)  { medalEl.textContent = '🥉'; medalTextEl.textContent = 'Bronze';   medalTextEl.style.color = '#cd7f32'; }
+}
+
 // GAME OVER
 function gameOver() {
   running = false;
+  sounds.hit.currentTime = 0; sounds.hit.play().catch(()=>{});
+  setTimeout(() => { sounds.die.currentTime = 0; sounds.die.play().catch(()=>{}); }, 180);
+
   if (score > highScore) {
     highScore = score;
     localStorage.setItem('flappyHigh', highScore);
     highScoreDisplay.textContent = highScore;
   }
-  coins += score;
+  const earnedThisRun = score * coinMultiplier;
+  coins += earnedThisRun;
   updateCoins();
+
   finalScoreEl.textContent = score;
-  earnedEl.textContent = score;
+  earnedEl.textContent = earnedThisRun;
+  showMedal();
   updateResurrectUI();
   overEl.classList.remove('hidden');
 }
@@ -350,12 +392,9 @@ function resurrect() {
   if (coins < resurrectCost) return;
   coins -= resurrectCost;
   updateCoins();
-  birdY = 200;
-  vel = 0;
-  birdEl.style.top = '200px';
-  birdEl.style.transform = 'rotate(0deg)';
-  pipes.forEach(p => { p.top.remove(); p.bot.remove(); });
-  pipes = [];
+  birdY = 200; vel = 0;
+  birdEl.style.top = '200px'; birdEl.style.transform = 'rotate(0deg)';
+  pipes.forEach(p => { p.top.remove(); p.bot.remove(); }); pipes = [];
   resurrectUsedThisRun++;
   resurrectCost = 50 + resurrectUsedThisRun * 100;
   updateResurrectUI();
@@ -366,73 +405,90 @@ function resurrect() {
 
 function updateResurrectUI() {
   resurrectCostEl.textContent = resurrectCost;
-  resurrectBtn.disabled = coins < resurrectCost;
-  resurrectBtn.style.opacity = coins < resurrectCost ? 0.5 : 1;
+  const canAfford = coins >= resurrectCost;
+  resurrectBtn.disabled = !canAfford;
+  resurrectBtn.textContent = canAfford 
+    ? `Resurrect (${resurrectCost} coins)` 
+    : `Resurrect (${resurrectCost} coins)`;
+  resurrectBtn.style.opacity = canAfford ? 1 : 0.6;
 }
 
-// POWER-UP SPAWN (random floating)
+// POWER-UPS
 function spawnPowerUp() {
-  const type = Math.random() < 0.5 ? 'apple' : 'coin';
+  const r = Math.random();
+  let type = 'apple';
+  if      (r < 0.45) type = 'apple';
+  else if (r < 0.80) type = 'coin';
+  else               type = 'mega-coin';
+
   const pu = document.createElement('div');
   pu.className = 'powerup';
-  pu.textContent = type === 'apple' ? '🍎' : '🪙';
+  pu.textContent = type === 'apple' ? '🍎' : (type === 'mega-coin' ? '🪙✨' : '🪙');
   pu.dataset.type = type;
   pu.style.left = '400px';
-  pu.style.top = (Math.random() * 400 + 100) + 'px'; // random height
+  pu.style.top = (Math.random() * 400 + 100) + 'px';
   gameEl.appendChild(pu);
   powerUps.push(pu);
 }
 
-// CHECK POWER-UP COLLECTION & ACTIVATION
+function activatePowerUp(type) {
+  activePower = type;
+  birdEl.style.filter = 'brightness(1.6)';
+  setTimeout(() => birdEl.style.filter = 'none', 500);
+
+  if (type === 'apple') {
+    powerEndTime = Date.now() + 5000;
+    coinMultiplierPipesLeft = 0;
+    coinMultiplier = 1;
+  } else if (type === 'coin') {
+    coinMultiplierPipesLeft = 10;
+    coinMultiplier = 2;
+    powerEndTime = 0;
+  } else if (type === 'mega-coin') {
+    coinMultiplierPipesLeft = 5;
+    coinMultiplier = 5;
+    powerEndTime = 0;
+  }
+}
+
 function checkPowerUpCollision() {
   const birdRect = birdEl.getBoundingClientRect();
   powerUps = powerUps.filter(pu => {
     const puRect = pu.getBoundingClientRect();
     if (birdRect.right > puRect.left && birdRect.left < puRect.right &&
         birdRect.bottom > puRect.top && birdRect.top < puRect.bottom) {
-      const type = pu.dataset.type;
-      activatePowerUp(type);
+      activatePowerUp(pu.dataset.type);
       pu.remove();
-      return false; // remove from array
+      return false;
     }
     return true;
   });
 }
 
-// ACTIVATE / REPLACE POWER-UP
-function activatePowerUp(type) {
-  activePower = type;
-
-  if (type === 'apple') {
-    powerEndTime = Date.now() + 5000; // 5 seconds
-  } else if (type === 'coin') {
-    doubleScorePipesLeft = 10;
-    powerEndTime = 0; // counter-based
-  }
-
-  birdEl.style.filter = 'brightness(1.6)';
-  setTimeout(() => birdEl.style.filter = 'none', 500);
-}
-
-// UPDATE POWER-UP TIMERS & MOVEMENT
 function updatePowerUps() {
   if (activePower === 'apple' && Date.now() > powerEndTime) {
     activePower = null;
+    coinMultiplier = 1;
+  }
+  if ((activePower === 'coin' || activePower === 'mega-coin') && coinMultiplierPipesLeft <= 0) {
+    activePower = null;
+    coinMultiplier = 1;
   }
 
-  // Move power-ups left
   powerUps.forEach(pu => {
     let x = parseFloat(pu.style.left) || 400;
-    x -= currentSpeed * 0.8; // slower than pipes
+    x -= currentSpeed * 0.8;
     pu.style.left = x + 'px';
     if (x < -50) {
       pu.remove();
       powerUps = powerUps.filter(p => p !== pu);
     }
   });
+
+  updatePowerStatus();
 }
 
-// PIPE CREATION (chance to spawn power-up)
+// PIPES
 function createPipe(isBoss = false) {
   const min = 100;
   const max = 640 - PIPE_GAP - min;
@@ -456,13 +512,9 @@ function createPipe(isBoss = false) {
 
   pipes.push({top, bot, scored:false, isBoss, baseTop: topH});
 
-  // 20% chance to spawn floating power-up
-  if (Math.random() < 0.2 && !isBoss) {
-    spawnPowerUp();
-  }
+  if (Math.random() < 0.22 && !isBoss) spawnPowerUp();
 }
 
-// PIPE UPDATE
 function updatePipes() {
   oscillationPhase += 0.015;
   for (let i = pipes.length - 1; i >= 0; i--) {
@@ -481,16 +533,13 @@ function updatePipes() {
 
     if (!p.scored && x + (p.isBoss ? 110 : 74) < 90) {
       p.scored = true;
-      let points = 1;
-      if (doubleScorePipesLeft > 0) {
-        points = 2;
-        doubleScorePipesLeft--;
-        if (doubleScorePipesLeft === 0) activePower = null;
+      score += 1;
+      if (coinMultiplierPipesLeft > 0) {
+        coinMultiplierPipesLeft--;
       }
-      score += points;
       scoreEl.textContent = score;
-      pointSound.currentTime = 0;
-      pointSound.play().catch(()=>{});
+      sounds.point.currentTime = 0;
+      sounds.point.play().catch(()=>{});
       if (score % 10 === 0 && score > 0) currentSpeed += SPEED_INCREMENT;
       if (score === 100) bossActive = true;
     }
@@ -505,17 +554,16 @@ function updatePipes() {
 
 // COLLISION
 function collides() {
-  if (gracePeriod) return false;
-  if (activePower === 'apple') return false;
+  if (gracePeriod || activePower === 'apple') return false;
+  if (birdY < -20 || birdY + 26 > parseFloat(gameEl.style.height)) return true;
 
-  if (birdY < -20 || birdY + 26 > 640) return true;
   const birdRect = birdEl.getBoundingClientRect();
   for (let p of pipes) {
     const topRect = p.top.getBoundingClientRect();
     const botRect = p.bot.getBoundingClientRect();
     if (birdRect.right > topRect.left && birdRect.left < topRect.right &&
-        ((birdRect.bottom > topRect.top && birdRect.top < topRect.bottom) ||
-         (birdRect.bottom > botRect.top && birdRect.top < botRect.bottom))) return true;
+       ((birdRect.bottom > topRect.top && birdRect.top < topRect.bottom) ||
+        (birdRect.bottom > botRect.top && birdRect.top < botRect.bottom))) return true;
   }
   return false;
 }
@@ -539,6 +587,7 @@ function updateBird() {
 function loop() {
   if (!running) return;
   const now = Date.now();
+
   if (now - lastPipe > PIPE_INTERVAL) {
     const isBossPipe = bossActive && score === 100;
     createPipe(isBossPipe);
@@ -562,12 +611,12 @@ function loop() {
 // FLAP
 function flap() {
   if (!running) return;
-
-  if (!gameStarted) {
-    gameStarted = true;
-  }
+  if (!gameStarted) gameStarted = true;
 
   vel = JUMP;
+  sounds.flap.currentTime = 0;
+  sounds.flap.play().catch(()=>{});
+
   birdEl.classList.remove('flapping');
   void birdEl.offsetWidth;
   birdEl.classList.add('flapping');
@@ -579,14 +628,12 @@ gameEl.addEventListener('pointerdown', e => {
   flap();
 }, { passive: false });
 
-// Robust button listeners
 function addSafeListener(id, callback) {
   const el = document.getElementById(id);
   if (!el) return;
   ['click', 'pointerdown', 'touchstart'].forEach(type => {
     el.addEventListener(type, e => {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       callback();
     }, { passive: false });
   });
@@ -619,17 +666,18 @@ addSafeListener('btn-back-high', () => {
   menuEl.classList.remove('hidden');
 });
 
-// STORE BUY
+// STORE
 function refreshStoreItems() {
   document.querySelectorAll('.item').forEach(item => {
     const birdType = item.dataset.bird;
     const price = parseInt(item.dataset.price);
     const unlocked = price === 0 || localStorage.getItem(`unlocked_${birdType}`);
-    if (birdType === selectedBird) item.classList.add('selected');
-    else item.classList.remove('selected');
-    if (unlocked) item.classList.remove('locked');
-    else if (coins >= price) item.classList.remove('locked');
-    else item.classList.add('locked');
+    item.classList.toggle('selected', birdType === selectedBird);
+    if (unlocked) {
+      item.classList.remove('locked');
+    } else {
+      item.classList.toggle('locked', coins < price);
+    }
   });
 }
 
@@ -663,7 +711,7 @@ document.querySelectorAll('.item').forEach(item => {
 });
 
 function updateCoins() {
-  coinsEl.textContent = coins + " 🪙";
+  coinsEl.textContent = coins + " 💰";
   storeCoinsEl.textContent = coins;
   localStorage.setItem('flappyCoins', coins);
 }
@@ -673,6 +721,7 @@ applyBirdSkin();
 updateCoins();
 highScoreDisplay.textContent = highScore;
 menuEl.classList.remove('hidden');
+resizeGame();
 </script>
 </body>
 </html>
